@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TARS Jeopardy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script type="importmap">
     {
       "imports": {
@@ -24,16 +25,18 @@
 
     :root {
       color-scheme: dark;
-      --bg: #0a0a2e;
-      --panel: #14144f;
-      --panel-strong: #1a1a5e;
-      --panel-hover: #25257a;
-      --gold: #ffd700;
-      --gold-soft: #ffed86;
-      --text: #ffffff;
-      --muted: #a8acc5;
-      --danger: #ff6b6b;
-      --success: #57d987;
+      --bg: #07090d;
+      --header-bg: #0a0e16;
+      --panel: #101722;
+      --panel-strong: #101722;
+      --panel-hover: #1a2438;
+      --accent: #39f5c4;
+      --accent-hover: #5cf7d4;
+      --warning: #ffb86b;
+      --danger: #ff5d73;
+      --success: #39f5c4;
+      --text: #e2e8f0;
+      --muted: #8892a4;
     }
 
     body {
@@ -43,8 +46,27 @@
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 1px 1px, rgba(57, 245, 196, 0.08) 1px, transparent 0),
+        linear-gradient(rgba(226, 232, 240, 0.025) 50%, transparent 50%);
+      background-size: 26px 26px, 100% 6px;
+      opacity: 0.42;
+    }
+
     button {
       font: inherit;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 5px rgba(57, 245, 196, 0.16);
     }
 
     .app-shell {
@@ -54,8 +76,8 @@
     }
 
     .header {
-      border-bottom: 2px solid rgba(255, 215, 0, 0.2);
-      background: linear-gradient(180deg, #11114a 0%, var(--bg) 100%);
+      border-bottom: 2px solid rgba(57, 245, 196, 0.24);
+      background: linear-gradient(180deg, var(--header-bg) 0%, var(--bg) 100%);
       padding: 22px 16px 18px;
       text-align: center;
     }
@@ -67,13 +89,13 @@
     }
 
     .header h1 {
-      color: var(--gold);
+      color: var(--accent);
       font-size: clamp(2rem, 4vw, 4rem);
       font-weight: 900;
       letter-spacing: 0.08em;
       line-height: 1;
       text-transform: uppercase;
-      text-shadow: 0 3px 0 #7a6200, 0 0 26px rgba(255, 215, 0, 0.26);
+      text-shadow: 0 0 26px rgba(57, 245, 196, 0.32);
     }
 
     .subtitle {
@@ -94,7 +116,8 @@
     }
 
     .score {
-      color: var(--gold);
+      color: var(--accent);
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-weight: 900;
       letter-spacing: 0.02em;
       line-height: 1;
@@ -138,7 +161,7 @@
       cursor: pointer;
       font-weight: 850;
       padding: 0 18px;
-      transition: background 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
       white-space: nowrap;
     }
 
@@ -152,31 +175,40 @@
     }
 
     .btn-primary {
-      background: var(--gold);
+      background: var(--accent);
       color: var(--bg);
     }
 
     .btn-primary:hover:not(:disabled) {
-      background: var(--gold-soft);
+      background: var(--accent-hover);
     }
 
     .btn-secondary {
-      background: #28286f;
+      background: var(--panel-hover);
       color: var(--text);
+      border: 1px solid rgba(136, 146, 164, 0.28);
     }
 
     .btn-secondary:hover:not(:disabled) {
-      background: #34348c;
+      background: var(--panel-hover);
     }
 
     .btn-success {
       background: var(--success);
-      color: #061f11;
+      color: var(--bg);
     }
 
     .btn-danger {
       background: var(--danger);
-      color: #240506;
+      color: var(--bg);
+    }
+
+    .btn-success:active {
+      box-shadow: 0 0 0 10px rgba(57, 245, 196, 0.2), 0 0 34px rgba(57, 245, 196, 0.35);
+    }
+
+    .btn-danger:active {
+      box-shadow: 0 0 0 10px rgba(255, 93, 115, 0.2), 0 0 34px rgba(255, 93, 115, 0.35);
     }
 
     .board-wrap {
@@ -193,7 +225,7 @@
 
     .cell {
       min-height: 82px;
-      border: 2px solid rgba(255, 255, 255, 0.07);
+      border: 2px solid rgba(136, 146, 164, 0.12);
       border-radius: 6px;
       display: flex;
       align-items: center;
@@ -204,11 +236,12 @@
 
     .category {
       min-height: 96px;
-      background: #10104a;
-      color: #ffffff;
+      background: var(--panel);
+      color: var(--accent);
+      font-family: Rajdhani, Inter, ui-sans-serif, system-ui, sans-serif;
       font-size: clamp(0.68rem, 1.15vw, 0.95rem);
-      font-weight: 900;
-      letter-spacing: 0.06em;
+      font-weight: 700;
+      letter-spacing: 0.12em;
       line-height: 1.25;
       overflow-wrap: anywhere;
       position: relative;
@@ -223,10 +256,10 @@
     .regen-category {
       width: 28px;
       height: 28px;
-      border: 1px solid rgba(255, 215, 0, 0.45);
+      border: 1px solid rgba(57, 245, 196, 0.52);
       border-radius: 999px;
-      background: rgba(255, 215, 0, 0.1);
-      color: var(--gold);
+      background: rgba(57, 245, 196, 0.08);
+      color: var(--accent);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -240,8 +273,8 @@
     }
 
     .regen-category:hover:not(:disabled) {
-      background: rgba(255, 215, 0, 0.2);
-      border-color: var(--gold);
+      background: rgba(57, 245, 196, 0.16);
+      border-color: var(--accent);
       transform: rotate(45deg);
     }
 
@@ -254,24 +287,25 @@
       position: relative;
       min-height: 44px;
       background: var(--panel-strong);
-      color: var(--gold);
+      color: var(--accent);
       cursor: pointer;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: clamp(1.25rem, 2.3vw, 2.15rem);
-      font-weight: 950;
+      font-weight: 700;
       line-height: 1;
-      text-shadow: 0 2px 0 #5b4900;
+      text-shadow: 0 0 18px rgba(57, 245, 196, 0.22);
     }
 
     .clue:hover:not(.answered) {
       background: var(--panel-hover);
-      border-color: var(--gold);
+      border-color: var(--accent);
     }
 
     .clue.answered {
-      background: #14172c;
-      color: #d6d6d6;
+      background: var(--bg);
+      color: var(--muted);
       cursor: default;
-      opacity: 0.4;
+      opacity: 0.46;
       text-shadow: none;
     }
 
@@ -299,8 +333,8 @@
     .spinner {
       width: 48px;
       height: 48px;
-      border: 4px solid rgba(255, 215, 0, 0.18);
-      border-top-color: var(--gold);
+      border: 4px solid rgba(57, 245, 196, 0.16);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 850ms linear infinite;
     }
@@ -310,7 +344,7 @@
     }
 
     .loading-title {
-      color: var(--gold);
+      color: var(--accent);
       font-size: 1.1rem;
       font-weight: 850;
     }
@@ -328,7 +362,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.82);
+      background: rgba(7, 9, 13, 0.86);
       padding: 18px;
     }
 
@@ -340,32 +374,34 @@
       width: min(720px, 100%);
       max-height: 85vh;
       overflow-y: auto;
-      border: 2px solid var(--gold);
+      border: 2px solid var(--accent);
       border-radius: 8px;
-      background: #0d0d3d;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.58), 0 0 50px rgba(57, 245, 196, 0.08);
       padding: clamp(20px, 4vw, 34px);
     }
 
     .modal-meta {
-      color: var(--gold);
+      color: var(--accent);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       font-size: 0.85rem;
       font-weight: 900;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.12em;
       margin-bottom: 22px;
       text-transform: uppercase;
     }
 
     .modal-value {
-      color: var(--gold-soft);
+      color: var(--accent-hover);
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       white-space: nowrap;
     }
 
     .modal-question {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: clamp(1.35rem, 3vw, 2.15rem);
       font-weight: 800;
       line-height: 1.32;
@@ -377,10 +413,10 @@
 
     .answer-box {
       display: none;
-      border: 1px solid rgba(87, 217, 135, 0.7);
+      border: 1px solid rgba(57, 245, 196, 0.64);
       border-radius: 8px;
-      background: rgba(87, 217, 135, 0.1);
-      color: #a6f3c2;
+      background: rgba(57, 245, 196, 0.08);
+      color: var(--accent-hover);
       font-size: clamp(1.05rem, 2.4vw, 1.35rem);
       font-weight: 800;
       line-height: 1.35;
@@ -402,7 +438,7 @@
     }
 
     .error {
-      color: #ffc1c1;
+      color: var(--danger);
     }
 
     .hidden {
@@ -487,15 +523,15 @@
   <main class="app-shell">
     <header class="header">
       <div class="brand-row">
-        <svg viewBox="0 0 512 512" width="42" height="42" style="vertical-align:middle; margin-right:12px; filter: drop-shadow(0 0 12px rgba(255,215,0,0.3));">
+        <svg viewBox="0 0 512 512" width="42" height="42" style="vertical-align:middle; margin-right:12px; filter: drop-shadow(0 0 12px rgba(57,245,196,0.3));">
           <defs>
             <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#ffd700"/>
-              <stop offset="100%" stop-color="#ffaa00"/>
+              <stop offset="0%" stop-color="#39f5c4"/>
+              <stop offset="100%" stop-color="#5cf7d4"/>
             </linearGradient>
           </defs>
-          <circle cx="256" cy="256" r="240" fill="#0a0a2e" stroke="#ffd700" stroke-width="8" opacity="0.15"/>
-          <circle cx="256" cy="256" r="220" fill="none" stroke="#ffd700" stroke-width="2" opacity="0.12"/>
+          <circle cx="256" cy="256" r="240" fill="#07090d" stroke="#39f5c4" stroke-width="8" opacity="0.15"/>
+          <circle cx="256" cy="256" r="220" fill="none" stroke="#39f5c4" stroke-width="2" opacity="0.12"/>
           <path d="M 156 148 L 356 148 L 356 188 L 286 188 L 286 354 L 226 354 L 226 188 L 156 188 Z" fill="url(#g)"/>
           <rect x="166" y="362" width="180" height="5" rx="2.5" fill="url(#g)" opacity="0.6"/>
         </svg>
