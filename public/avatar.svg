@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a2e"/>
+      <stop offset="100%" stop-color="#06061a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffd700"/>
+      <stop offset="50%" stop-color="#ffed4a"/>
+      <stop offset="100%" stop-color="#ffaa00"/>
+    </linearGradient>
+    <linearGradient id="goldDim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b89500"/>
+      <stop offset="100%" stop-color="#8a6f00"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowSoft">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bg)" stroke="#1a1a5e" stroke-width="4"/>
+
+  <!-- Inner ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#ffd700" stroke-width="1.5" opacity="0.15"/>
+
+  <!-- Outer ring segments (tactical HUD style) -->
+  <circle cx="256" cy="256" r="235" fill="none" stroke="#ffd700" stroke-width="0.5" opacity="0.08"
+    stroke-dasharray="4 12"/>
+
+  <!-- Crosshair lines -->
+  <line x1="256" y1="36" x2="256" y2="60" stroke="#ffd700" stroke-width="1.5" opacity="0.3"/>
+  <line x1="256" y1="452" x2="256" y2="476" stroke="#ffd700" stroke-width="1.5" opacity="0.3"/>
+  <line x1="36" y1="256" x2="60" y2="256" stroke="#ffd700" stroke-width="1.5" opacity="0.3"/>
+  <line x1="452" y1="256" x2="476" y2="256" stroke="#ffd700" stroke-width="1.5" opacity="0.3"/>
+
+  <!-- TARS text "T" — main emblem -->
+  <g filter="url(#glow)">
+    <!-- T letterform — wide, bold, tactical -->
+    <path d="M 140 140 L 372 140 L 372 185 L 290 185 L 290 360 L 222 360 L 222 185 L 140 185 Z"
+      fill="url(#gold)" opacity="0.95"/>
+  </g>
+
+  <!-- Subtle T outline/shadow -->
+  <path d="M 140 140 L 372 140 L 372 185 L 290 185 L 290 360 L 222 360 L 222 185 L 140 185 Z"
+    fill="none" stroke="#fff" stroke-width="1" opacity="0.15"/>
+
+  <!-- Jeopardy!-style underline accent on T -->
+  <rect x="155" y="370" width="202" height="4" rx="2" fill="url(#gold)" opacity="0.6" filter="url(#glowSoft)"/>
+
+  <!-- Small decorative dots (tactical HUD elements) -->
+  <circle cx="140" cy="140" r="4" fill="#ffd700" opacity="0.4"/>
+  <circle cx="372" cy="140" r="4" fill="#ffd700" opacity="0.4"/>
+  <circle cx="140" cy="185" r="3" fill="#ffd700" opacity="0.25"/>
+  <circle cx="372" cy="185" r="3" fill="#ffd700" opacity="0.25"/>
+
+  <!-- Corner brackets (military/tactical vibe) -->
+  <path d="M 85 85 L 115 85 L 115 90 M 85 85 L 85 115 M 427 85 L 397 85 L 397 90 M 427 85 L 427 115"
+    fill="none" stroke="#ffd700" stroke-width="2" opacity="0.2"/>
+  <path d="M 85 427 L 115 427 L 115 422 M 85 427 L 85 397 M 427 427 L 397 427 L 397 422 M 427 427 L 427 397"
+    fill="none" stroke="#ffd700" stroke-width="2" opacity="0.2"/>
+
+  <!-- Small status indicators -->
+  <circle cx="120" cy="256" r="3" fill="#57d987" opacity="0.5"/>
+  <circle cx="392" cy="256" r="3" fill="#57d987" opacity="0.5"/>
+  <line x1="125" y1="256" x2="140" y2="256" stroke="#57d987" stroke-width="1" opacity="0.3"/>
+  <line x1="372" y1="256" x2="387" y2="256" stroke="#57d987" stroke-width="1" opacity="0.3"/>
+</svg>

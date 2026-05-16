@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeopardy POC</title>
+  <title>TARS Jeopardy</title>
   <script type="importmap">
     {
       "imports": {
@@ -58,6 +58,12 @@
       background: linear-gradient(180deg, #11114a 0%, var(--bg) 100%);
       padding: 22px 16px 18px;
       text-align: center;
+    }
+
+    .brand-row {
+      align-items: center;
+      display: flex;
+      justify-content: center;
     }
 
     .header h1 {
@@ -480,8 +486,22 @@
 <body>
   <main class="app-shell">
     <header class="header">
-      <h1>JEOPARDY POC</h1>
-      <p class="subtitle">AI-Powered · Firebase-Powered</p>
+      <div class="brand-row">
+        <svg viewBox="0 0 512 512" width="42" height="42" style="vertical-align:middle; margin-right:12px; filter: drop-shadow(0 0 12px rgba(255,215,0,0.3));">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#ffd700"/>
+              <stop offset="100%" stop-color="#ffaa00"/>
+            </linearGradient>
+          </defs>
+          <circle cx="256" cy="256" r="240" fill="#0a0a2e" stroke="#ffd700" stroke-width="8" opacity="0.15"/>
+          <circle cx="256" cy="256" r="220" fill="none" stroke="#ffd700" stroke-width="2" opacity="0.12"/>
+          <path d="M 156 148 L 356 148 L 356 188 L 286 188 L 286 354 L 226 354 L 226 188 L 156 188 Z" fill="url(#g)"/>
+          <rect x="166" y="362" width="180" height="5" rx="2.5" fill="url(#g)" opacity="0.6"/>
+        </svg>
+        <h1>TARS JEOPARDY</h1>
+      </div>
+      <p class="subtitle">Tactical AI Game Show</p>
     </header>
 
     <section class="topbar" aria-label="Game controls">
