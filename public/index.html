@@ -8,6 +8,7 @@
     {
       "imports": {
         "firebase/app": "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js",
+        "firebase/app-check": "https://www.gstatic.com/firebasejs/12.13.0/firebase-app-check.js",
         "firebase/ai": "https://www.gstatic.com/firebasejs/12.13.0/firebase-ai.js",
         "firebase/auth": "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js",
         "firebase/firestore": "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js"
@@ -81,6 +82,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 16px;
       padding: 16px;
     }
@@ -202,11 +204,49 @@
       font-weight: 900;
       letter-spacing: 0.06em;
       line-height: 1.25;
+      overflow-wrap: anywhere;
+      position: relative;
       text-transform: uppercase;
+      word-break: break-word;
+    }
+
+    .category-name {
+      padding-right: 26px;
+    }
+
+    .regen-category {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 215, 0, 0.45);
+      border-radius: 999px;
+      background: rgba(255, 215, 0, 0.1);
+      color: var(--gold);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 900;
+      line-height: 1;
+      position: absolute;
+      inset: 8px 8px auto auto;
+      transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+    }
+
+    .regen-category:hover:not(:disabled) {
+      background: rgba(255, 215, 0, 0.2);
+      border-color: var(--gold);
+      transform: rotate(45deg);
+    }
+
+    .regen-category:disabled {
+      cursor: wait;
+      opacity: 0.45;
     }
 
     .clue {
       position: relative;
+      min-height: 44px;
       background: var(--panel-strong);
       color: var(--gold);
       cursor: pointer;
@@ -292,6 +332,8 @@
 
     .modal {
       width: min(720px, 100%);
+      max-height: 85vh;
+      overflow-y: auto;
       border: 2px solid var(--gold);
       border-radius: 8px;
       background: #0d0d3d;
@@ -387,7 +429,15 @@
 
       .category {
         min-height: 76px;
-        font-size: 0.58rem;
+        font-size: 0.56rem;
+        letter-spacing: 0.03em;
+      }
+
+      .regen-category {
+        width: 24px;
+        height: 24px;
+        font-size: 0.9rem;
+        inset: 6px 6px auto auto;
       }
     }
 
@@ -407,6 +457,18 @@
 
       .board {
         min-width: 680px;
+      }
+
+      .topbar {
+        align-items: center;
+      }
+
+      .actions {
+        align-items: flex-start;
+        flex: 1 1 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
       }
 
       .status {
@@ -464,6 +526,10 @@
   </div>
 
   <script type="module">
+    // TODO: Enable App Check in Firebase Console
+    // 1. Go to Firebase Console -> App Check -> Register app -> reCAPTCHA Enterprise
+    // 2. Get site key, uncomment the App Check initialization below
+    // 3. The import for firebase/app-check is already in the importmap
     import { initializeApp } from "firebase/app";
     import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
     import { getAuth, signInAnonymously } from "firebase/auth";
@@ -472,10 +538,12 @@
       collection,
       doc,
       enableIndexedDbPersistence,
+      getDoc,
       getDocs,
       limit,
       query,
       serverTimestamp,
+      setDoc,
       updateDoc,
       where
     } from "firebase/firestore";
@@ -530,6 +598,7 @@
     let score = 0;
     let answered = [];
     let currentClue = null;
+    let regeneratingCategory = null;
 
     function setStatus(text) {
       els.gameStatus.textContent = text;
@@ -573,7 +642,61 @@
       };
     }
 
-    function buildPrompt() {
+    function normalizeCategoryData(rawData) {
+      const category = rawData?.category || rawData?.categories?.[0] || rawData;
+      const clues = Array.isArray(category?.clues) ? category.clues : [];
+      if (clues.length !== 5) {
+        throw new Error("AI returned an invalid category: expected 5 clues.");
+      }
+
+      return {
+        name: String(category?.name || "New Category").trim(),
+        clues: clues.map((clue, clueIndex) => ({
+          value: Number(clue?.value) || (clueIndex + 1) * 200,
+          question: String(clue?.question || "").trim(),
+          answer: String(clue?.answer || "").trim()
+        }))
+      };
+    }
+
+    function getStatsRef() {
+      return doc(db, "users", uid, "stats", "current");
+    }
+
+    async function loadUserStats() {
+      const snapshot = await getDoc(getStatsRef());
+      return snapshot.exists() ? snapshot.data() : null;
+    }
+
+    function getBestTier(stats) {
+      const tiers = Object.entries(stats?.valueTierStats || {})
+        .map(([value, tier]) => {
+          const total = Number(tier?.total) || 0;
+          const correct = Number(tier?.correct) || 0;
+          return {
+            value,
+            total,
+            accuracy: total > 0 ? correct / total : 0
+          };
+        })
+        .filter(tier => tier.total > 0)
+        .sort((a, b) => b.accuracy - a.accuracy || b.total - a.total);
+
+      return tiers[0] || null;
+    }
+
+    function buildPrompt(stats = null) {
+      const recentCategories = Array.isArray(stats?.recentCategories)
+        ? [...new Set(stats.recentCategories.map(name => String(name).trim()).filter(Boolean))]
+        : [];
+      const bestTier = getBestTier(stats);
+      const personalization = stats ? `
+
+Personalization:
+- Do not repeat these recent categories: ${recentCategories.length ? recentCategories.join(", ") : "none recorded"}.
+- Include at least one category type that is unlike the recent categories.
+- The player's strongest value tier is ${bestTier ? `$${bestTier.value}` : "not established yet"}; keep lower tiers approachable and make tiers above that clearly more challenging.` : "";
+
       return `Generate a Jeopardy game board with exactly 6 categories and exactly 5 clues per category.
 
 Return valid JSON only with this exact shape:
@@ -598,13 +721,50 @@ Rules:
 - Higher values should be harder than lower values.
 - The "question" field is the clue shown to players.
 - The "answer" field must be in Jeopardy response format, starting with "What is", "Who is", "Where is", "When is", or "Why is".
-- Keep each clue concise and factual.`;
+- Keep each clue concise and factual.${personalization}`;
     }
 
     async function generateBoard() {
-      const result = await model.generateContent(buildPrompt());
+      const stats = await loadUserStats();
+      const result = await model.generateContent(buildPrompt(stats));
       const text = result.response.text();
       return normalizeGameData(JSON.parse(text));
+    }
+
+    function buildCategoryPrompt(existingCategoryNames, categoryIndex) {
+      return `Generate exactly 1 Jeopardy category with exactly 5 clues.
+
+Return valid JSON only with this exact shape:
+{
+  "category": {
+    "name": "Category Name",
+    "clues": [
+      { "value": 200, "question": "Question text?", "answer": "What is...?" },
+      { "value": 400, "question": "...", "answer": "..." },
+      { "value": 600, "question": "...", "answer": "..." },
+      { "value": 800, "question": "...", "answer": "..." },
+      { "value": 1000, "question": "...", "answer": "..." }
+    ]
+  }
+}
+
+Rules:
+- Use exactly these clue values: 200, 400, 600, 800, 1000.
+- Do not use these current board categories: ${existingCategoryNames.join(", ")}.
+- Make the category distinct from the one currently in slot ${categoryIndex + 1}.
+- Higher values should be harder than lower values.
+- The "question" field is the clue shown to players.
+- The "answer" field must be in Jeopardy response format, starting with "What is", "Who is", "Where is", "When is", or "Why is".
+- Keep each clue concise and factual.`;
+    }
+
+    async function generateCategory(categoryIndex) {
+      const existingCategoryNames = gameData.categories
+        .map((category, index) => index === categoryIndex ? null : category.name)
+        .filter(Boolean);
+      const result = await model.generateContent(buildCategoryPrompt(existingCategoryNames, categoryIndex));
+      const text = result.response.text();
+      return normalizeCategoryData(JSON.parse(text));
     }
 
     async function createGame(data) {
@@ -617,6 +777,55 @@ Rules:
       });
 
       return gameRef.id;
+    }
+
+    function mergeStatBucket(currentBucket, isCorrect) {
+      return {
+        seen: (Number(currentBucket?.seen) || 0) + 1,
+        correct: (Number(currentBucket?.correct) || 0) + (isCorrect ? 1 : 0),
+        total: (Number(currentBucket?.total) || 0) + 1
+      };
+    }
+
+    async function updateAnswerStats(clue, isCorrect) {
+      const stats = await loadUserStats();
+      const categoryName = String(clue.categoryName || "Unknown").trim() || "Unknown";
+      const valueTier = String(clue.value);
+
+      await setDoc(getStatsRef(), {
+        uid,
+        gamesPlayed: Number(stats?.gamesPlayed) || 0,
+        totalScore: (Number(stats?.totalScore) || 0) + (isCorrect ? Number(clue.value) || 0 : 0),
+        categoryStats: {
+          ...(stats?.categoryStats || {}),
+          [categoryName]: mergeStatBucket(stats?.categoryStats?.[categoryName], isCorrect)
+        },
+        valueTierStats: {
+          ...(stats?.valueTierStats || {}),
+          [valueTier]: mergeStatBucket(stats?.valueTierStats?.[valueTier], isCorrect)
+        },
+        recentCategories: Array.isArray(stats?.recentCategories) ? stats.recentCategories : [],
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    }
+
+    async function updateNewGameStats(data) {
+      const stats = await loadUserStats();
+      const categoryNames = data.categories.map(category => category.name).filter(Boolean);
+      const recentCategories = [
+        ...(Array.isArray(stats?.recentCategories) ? stats.recentCategories : []),
+        ...categoryNames
+      ].slice(-18);
+
+      await setDoc(getStatsRef(), {
+        uid,
+        gamesPlayed: (Number(stats?.gamesPlayed) || 0) + 1,
+        totalScore: Number(stats?.totalScore) || 0,
+        categoryStats: stats?.categoryStats || {},
+        valueTierStats: stats?.valueTierStats || {},
+        recentCategories,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
     }
 
     async function loadLatestGame() {
@@ -650,10 +859,13 @@ Rules:
       }
       updateScoreDisplay();
 
-      await updateDoc(doc(db, "games", gameId), {
-        score,
-        answered
-      });
+      await Promise.all([
+        updateDoc(doc(db, "games", gameId), {
+          score,
+          answered
+        }),
+        updateAnswerStats(clue, isCorrect)
+      ]);
     }
 
     function isAnswered(clue) {
@@ -663,10 +875,27 @@ Rules:
     function renderBoard() {
       els.board.innerHTML = "";
 
-      gameData.categories.forEach((category) => {
+      gameData.categories.forEach((category, categoryIndex) => {
         const cell = document.createElement("div");
         cell.className = "cell category";
-        cell.textContent = category.name;
+
+        const name = document.createElement("span");
+        name.className = "category-name";
+        name.textContent = category.name;
+
+        const regen = document.createElement("button");
+        regen.className = "regen-category";
+        regen.type = "button";
+        regen.textContent = "↻";
+        regen.disabled = regeneratingCategory !== null;
+        regen.title = `Regenerate ${category.name}`;
+        regen.setAttribute("aria-label", `Regenerate ${category.name} category`);
+        regen.addEventListener("click", (event) => {
+          event.stopPropagation();
+          regenerateCategory(categoryIndex);
+        });
+
+        cell.append(name, regen);
         els.board.appendChild(cell);
       });
 
@@ -705,6 +934,36 @@ Rules:
       els.showAnswerBtn.focus();
     }
 
+    async function regenerateCategory(categoryIndex) {
+      if (!gameData || regeneratingCategory !== null) {
+        return;
+      }
+
+      regeneratingCategory = categoryIndex;
+      setStatus(`Regenerating ${gameData.categories[categoryIndex].name}...`);
+      renderBoard();
+
+      try {
+        const category = await generateCategory(categoryIndex);
+        gameData = {
+          ...gameData,
+          categories: gameData.categories.map((existingCategory, index) => (
+            index === categoryIndex ? category : existingCategory
+          ))
+        };
+        await updateDoc(doc(db, "games", gameId), {
+          data: gameData
+        });
+        setStatus("Category regenerated and saved");
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not regenerate category");
+      } finally {
+        regeneratingCategory = null;
+        renderBoard();
+      }
+    }
+
     function closeModal() {
       els.modal.classList.remove("active");
       currentClue = null;
@@ -721,6 +980,7 @@ Rules:
       try {
         gameData = await generateBoard();
         gameId = await createGame(gameData);
+        await updateNewGameStats(gameData);
         renderBoard();
         setStatus("New game saved to Firestore");
         setLoading(false);
