@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jeopardy POC</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js",
+        "firebase/ai": "https://www.gstatic.com/firebasejs/12.13.0/firebase-ai.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js"
+      }
+    }
+  </script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      color-scheme: dark;
+      --bg: #0a0a2e;
+      --panel: #14144f;
+      --panel-strong: #1a1a5e;
+      --panel-hover: #25257a;
+      --gold: #ffd700;
+      --gold-soft: #ffed86;
+      --text: #ffffff;
+      --muted: #a8acc5;
+      --danger: #ff6b6b;
+      --success: #57d987;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      border-bottom: 2px solid rgba(255, 215, 0, 0.2);
+      background: linear-gradient(180deg, #11114a 0%, var(--bg) 100%);
+      padding: 22px 16px 18px;
+      text-align: center;
+    }
+
+    .header h1 {
+      color: var(--gold);
+      font-size: clamp(2rem, 4vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      text-transform: uppercase;
+      text-shadow: 0 3px 0 #7a6200, 0 0 26px rgba(255, 215, 0, 0.26);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 9px;
+    }
+
+    .topbar {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .score {
+      color: var(--gold);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      line-height: 1;
+    }
+
+    .score-label {
+      color: var(--muted);
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .score-amount {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 0.9rem;
+      max-width: 46vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 850;
+      padding: 0 18px;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    .btn-primary {
+      background: var(--gold);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--gold-soft);
+    }
+
+    .btn-secondary {
+      background: #28286f;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #34348c;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #061f11;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #240506;
+    }
+
+    .board-wrap {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      padding: 0 16px 26px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .cell {
+      min-height: 82px;
+      border: 2px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .category {
+      min-height: 96px;
+      background: #10104a;
+      color: #ffffff;
+      font-size: clamp(0.68rem, 1.15vw, 0.95rem);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      line-height: 1.25;
+      text-transform: uppercase;
+    }
+
+    .clue {
+      position: relative;
+      background: var(--panel-strong);
+      color: var(--gold);
+      cursor: pointer;
+      font-size: clamp(1.25rem, 2.3vw, 2.15rem);
+      font-weight: 950;
+      line-height: 1;
+      text-shadow: 0 2px 0 #5b4900;
+    }
+
+    .clue:hover:not(.answered) {
+      background: var(--panel-hover);
+      border-color: var(--gold);
+    }
+
+    .clue.answered {
+      background: #14172c;
+      color: #d6d6d6;
+      cursor: default;
+      opacity: 0.4;
+      text-shadow: none;
+    }
+
+    .clue.answered::after {
+      content: "✓";
+      position: absolute;
+      inset: auto 10px 8px auto;
+      color: var(--success);
+      font-size: 1.1rem;
+      font-weight: 900;
+    }
+
+    .loading {
+      width: min(720px, calc(100% - 32px));
+      min-height: 44vh;
+      margin: 20px auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255, 215, 0, 0.18);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 850ms linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-title {
+      color: var(--gold);
+      font-size: 1.1rem;
+      font-weight: 850;
+    }
+
+    .loading-text {
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 560px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.82);
+      padding: 18px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      width: min(720px, 100%);
+      border: 2px solid var(--gold);
+      border-radius: 8px;
+      background: #0d0d3d;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
+      padding: clamp(20px, 4vw, 34px);
+    }
+
+    .modal-meta {
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 0.85rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      margin-bottom: 22px;
+      text-transform: uppercase;
+    }
+
+    .modal-value {
+      color: var(--gold-soft);
+      white-space: nowrap;
+    }
+
+    .modal-question {
+      font-size: clamp(1.35rem, 3vw, 2.15rem);
+      font-weight: 800;
+      line-height: 1.32;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      text-align: center;
+    }
+
+    .answer-box {
+      display: none;
+      border: 1px solid rgba(87, 217, 135, 0.7);
+      border-radius: 8px;
+      background: rgba(87, 217, 135, 0.1);
+      color: #a6f3c2;
+      font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+      font-weight: 800;
+      line-height: 1.35;
+      margin-top: 22px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .answer-box.visible {
+      display: block;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+
+    .error {
+      color: #ffc1c1;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 820px) {
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .actions {
+        align-items: flex-end;
+        flex-direction: column;
+      }
+
+      .status {
+        max-width: 55vw;
+        text-align: right;
+      }
+
+      .board {
+        gap: 5px;
+      }
+
+      .cell {
+        min-height: 64px;
+        padding: 7px;
+      }
+
+      .category {
+        min-height: 76px;
+        font-size: 0.58rem;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .header h1 {
+        letter-spacing: 0.04em;
+      }
+
+      .subtitle {
+        font-size: 0.82rem;
+      }
+
+      .board-wrap {
+        overflow-x: auto;
+        padding-inline: 10px;
+      }
+
+      .board {
+        min-width: 680px;
+      }
+
+      .status {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="header">
+      <h1>JEOPARDY POC</h1>
+      <p class="subtitle">AI-Powered · Firebase-Powered</p>
+    </header>
+
+    <section class="topbar" aria-label="Game controls">
+      <div class="score" aria-live="polite">
+        <span class="score-label">Score</span>
+        <span class="score-amount" id="scoreDisplay">$0</span>
+      </div>
+      <div class="actions">
+        <span class="status" id="gameStatus">Starting...</span>
+        <button class="btn btn-primary" id="newGameBtn" type="button">New Game</button>
+      </div>
+    </section>
+
+    <section class="loading" id="loadingState" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <p class="loading-title" id="loadingTitle">Loading game</p>
+        <p class="loading-text" id="loadingText">Signing in and checking Firestore...</p>
+      </div>
+    </section>
+
+    <section class="board-wrap hidden" id="boardWrap">
+      <div class="board" id="board" aria-label="Jeopardy board"></div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalQuestion">
+    <div class="modal">
+      <div class="modal-meta">
+        <span id="modalCategory">Category</span>
+        <span class="modal-value" id="modalValue">$0</span>
+      </div>
+      <div class="modal-question" id="modalQuestion"></div>
+      <div class="answer-box" id="answerBox"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="showAnswerBtn" type="button">Show Answer</button>
+        <button class="btn btn-success hidden" id="correctBtn" type="button">Correct</button>
+        <button class="btn btn-danger hidden" id="wrongBtn" type="button">Wrong</button>
+        <button class="btn btn-secondary" id="closeModalBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "firebase/app";
+    import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
+    import { getAuth, signInAnonymously } from "firebase/auth";
+    import {
+      addDoc,
+      collection,
+      doc,
+      enableIndexedDbPersistence,
+      getDocs,
+      limit,
+      query,
+      serverTimestamp,
+      updateDoc,
+      where
+    } from "firebase/firestore";
+    import { getFirestore } from "firebase/firestore";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhjm6y4dX0_6TmBE7sm5moT-Ab920w_Nk",
+      authDomain: "jeopardy-poc.firebaseapp.com",
+      projectId: "jeopardy-poc",
+      storageBucket: "jeopardy-poc.firebasestorage.app",
+      messagingSenderId: "91129255513",
+      appId: "1:91129255513:web:d692eaf7cfebd13d53c348",
+      measurementId: "G-F128Z0213Y"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    const model = getGenerativeModel(ai, {
+      model: "gemini-3-flash-preview",
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const els = {
+      answerBox: document.getElementById("answerBox"),
+      board: document.getElementById("board"),
+      boardWrap: document.getElementById("boardWrap"),
+      closeModalBtn: document.getElementById("closeModalBtn"),
+      correctBtn: document.getElementById("correctBtn"),
+      gameStatus: document.getElementById("gameStatus"),
+      loadingState: document.getElementById("loadingState"),
+      loadingText: document.getElementById("loadingText"),
+      loadingTitle: document.getElementById("loadingTitle"),
+      modal: document.getElementById("modal"),
+      modalCategory: document.getElementById("modalCategory"),
+      modalQuestion: document.getElementById("modalQuestion"),
+      modalValue: document.getElementById("modalValue"),
+      newGameBtn: document.getElementById("newGameBtn"),
+      scoreDisplay: document.getElementById("scoreDisplay"),
+      showAnswerBtn: document.getElementById("showAnswerBtn"),
+      wrongBtn: document.getElementById("wrongBtn")
+    };
+
+    let uid = "";
+    let gameId = "";
+    let gameData = null;
+    let score = 0;
+    let answered = [];
+    let currentClue = null;
+
+    function setStatus(text) {
+      els.gameStatus.textContent = text;
+    }
+
+    function setLoading(isLoading, title = "Loading game", text = "") {
+      els.loadingState.classList.toggle("hidden", !isLoading);
+      els.boardWrap.classList.toggle("hidden", isLoading);
+      els.newGameBtn.disabled = isLoading;
+      els.loadingText.classList.remove("error");
+      els.loadingTitle.textContent = title;
+      els.loadingText.textContent = text;
+    }
+
+    function updateScoreDisplay() {
+      els.scoreDisplay.textContent = `$${score.toLocaleString()}`;
+    }
+
+    function normalizeGameData(rawData) {
+      const categories = Array.isArray(rawData?.categories) ? rawData.categories : [];
+      if (categories.length !== 6) {
+        throw new Error("AI returned an invalid board: expected 6 categories.");
+      }
+
+      return {
+        categories: categories.map((category, categoryIndex) => {
+          const clues = Array.isArray(category?.clues) ? category.clues : [];
+          if (clues.length !== 5) {
+            throw new Error(`AI returned an invalid board: category ${categoryIndex + 1} needs 5 clues.`);
+          }
+
+          return {
+            name: String(category?.name || `Category ${categoryIndex + 1}`).trim(),
+            clues: clues.map((clue, clueIndex) => ({
+              value: Number(clue?.value) || (clueIndex + 1) * 200,
+              question: String(clue?.question || "").trim(),
+              answer: String(clue?.answer || "").trim()
+            }))
+          };
+        })
+      };
+    }
+
+    function buildPrompt() {
+      return `Generate a Jeopardy game board with exactly 6 categories and exactly 5 clues per category.
+
+Return valid JSON only with this exact shape:
+{
+  "categories": [
+    {
+      "name": "Category Name",
+      "clues": [
+        { "value": 200, "question": "Question text?", "answer": "What is...?" },
+        { "value": 400, "question": "...", "answer": "..." },
+        { "value": 600, "question": "...", "answer": "..." },
+        { "value": 800, "question": "...", "answer": "..." },
+        { "value": 1000, "question": "...", "answer": "..." }
+      ]
+    }
+  ]
+}
+
+Rules:
+- Use exactly these clue values in every category: 200, 400, 600, 800, 1000.
+- Make 6 diverse categories across subjects like science, history, geography, arts, language, and pop culture.
+- Higher values should be harder than lower values.
+- The "question" field is the clue shown to players.
+- The "answer" field must be in Jeopardy response format, starting with "What is", "Who is", "Where is", "When is", or "Why is".
+- Keep each clue concise and factual.`;
+    }
+
+    async function generateBoard() {
+      const result = await model.generateContent(buildPrompt());
+      const text = result.response.text();
+      return normalizeGameData(JSON.parse(text));
+    }
+
+    async function createGame(data) {
+      const gameRef = await addDoc(collection(db, "games"), {
+        uid,
+        data,
+        score: 0,
+        answered: [],
+        createdAt: serverTimestamp()
+      });
+
+      return gameRef.id;
+    }
+
+    async function loadLatestGame() {
+      const gamesQuery = query(
+        collection(db, "games"),
+        where("uid", "==", uid),
+        limit(10)
+      );
+      const snapshot = await getDocs(gamesQuery);
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      // Sort by createdAt descending client-side (avoids composite index)
+      const docs = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const aTime = a.createdAt?.toMillis?.() || 0;
+          const bTime = b.createdAt?.toMillis?.() || 0;
+          return bTime - aTime;
+        });
+
+      return docs[0];
+    }
+
+    async function persistAnswer(clue, isCorrect) {
+      answered = [...new Set([...answered, clue.question])];
+      if (isCorrect) {
+        score += clue.value;
+      }
+      updateScoreDisplay();
+
+      await updateDoc(doc(db, "games", gameId), {
+        score,
+        answered
+      });
+    }
+
+    function isAnswered(clue) {
+      return answered.includes(clue.question);
+    }
+
+    function renderBoard() {
+      els.board.innerHTML = "";
+
+      gameData.categories.forEach((category) => {
+        const cell = document.createElement("div");
+        cell.className = "cell category";
+        cell.textContent = category.name;
+        els.board.appendChild(cell);
+      });
+
+      for (let row = 0; row < 5; row += 1) {
+        gameData.categories.forEach((category, categoryIndex) => {
+          const clue = category.clues[row];
+          const cell = document.createElement("button");
+          cell.className = `cell clue${isAnswered(clue) ? " answered" : ""}`;
+          cell.type = "button";
+          cell.textContent = isAnswered(clue) ? "" : `$${clue.value}`;
+          cell.disabled = isAnswered(clue);
+          cell.setAttribute("aria-label", `${category.name} for $${clue.value}`);
+          cell.addEventListener("click", () => openClue(categoryIndex, row));
+          els.board.appendChild(cell);
+        });
+      }
+    }
+
+    function openClue(categoryIndex, clueIndex) {
+      const category = gameData.categories[categoryIndex];
+      const clue = category.clues[clueIndex];
+      if (isAnswered(clue)) {
+        return;
+      }
+
+      currentClue = { ...clue, categoryName: category.name };
+      els.modalCategory.textContent = category.name;
+      els.modalValue.textContent = `$${clue.value}`;
+      els.modalQuestion.textContent = clue.question;
+      els.answerBox.textContent = clue.answer;
+      els.answerBox.classList.remove("visible");
+      els.showAnswerBtn.classList.remove("hidden");
+      els.correctBtn.classList.add("hidden");
+      els.wrongBtn.classList.add("hidden");
+      els.modal.classList.add("active");
+      els.showAnswerBtn.focus();
+    }
+
+    function closeModal() {
+      els.modal.classList.remove("active");
+      currentClue = null;
+    }
+
+    async function startNewGame() {
+      setStatus("Generating with Firebase AI Logic...");
+      setLoading(true, "Generating board", "Gemini is creating 6 categories and 30 clues.");
+      closeModal();
+      score = 0;
+      answered = [];
+      updateScoreDisplay();
+
+      try {
+        gameData = await generateBoard();
+        gameId = await createGame(gameData);
+        renderBoard();
+        setStatus("New game saved to Firestore");
+        setLoading(false);
+      } catch (error) {
+        console.error(error);
+        setLoading(true, "Generation failed", error?.message || "Could not create a new board.");
+        els.loadingText.classList.add("error");
+        setStatus("Generation failed");
+        els.newGameBtn.disabled = false;
+      }
+    }
+
+    async function boot() {
+      try {
+        await enableIndexedDbPersistence(db).catch(() => undefined);
+        const credential = await signInAnonymously(auth);
+        uid = credential.user.uid;
+
+        const existingGame = await loadLatestGame();
+        if (existingGame?.data) {
+          gameId = existingGame.id;
+          gameData = normalizeGameData(existingGame.data);
+          score = Number(existingGame.score) || 0;
+          answered = Array.isArray(existingGame.answered) ? existingGame.answered : [];
+          updateScoreDisplay();
+          renderBoard();
+          setStatus("Resumed latest Firestore game");
+          setLoading(false);
+          return;
+        }
+
+        await startNewGame();
+      } catch (error) {
+        console.error(error);
+        setLoading(true, "Startup failed", error?.message || "Could not initialize Firebase.");
+        els.loadingText.classList.add("error");
+        setStatus("Startup failed");
+        els.newGameBtn.disabled = false;
+      }
+    }
+
+    els.showAnswerBtn.addEventListener("click", () => {
+      els.answerBox.classList.add("visible");
+      els.showAnswerBtn.classList.add("hidden");
+      els.correctBtn.classList.remove("hidden");
+      els.wrongBtn.classList.remove("hidden");
+      els.correctBtn.focus();
+    });
+
+    els.correctBtn.addEventListener("click", async () => {
+      if (!currentClue) {
+        return;
+      }
+
+      els.correctBtn.disabled = true;
+      els.wrongBtn.disabled = true;
+      try {
+        await persistAnswer(currentClue, true);
+        closeModal();
+        renderBoard();
+        setStatus("Answer saved to Firestore");
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not save answer");
+      } finally {
+        els.correctBtn.disabled = false;
+        els.wrongBtn.disabled = false;
+      }
+    });
+
+    els.wrongBtn.addEventListener("click", async () => {
+      if (!currentClue) {
+        return;
+      }
+
+      els.correctBtn.disabled = true;
+      els.wrongBtn.disabled = true;
+      try {
+        await persistAnswer(currentClue, false);
+        closeModal();
+        renderBoard();
+        setStatus("Answer saved to Firestore");
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not save answer");
+      } finally {
+        els.correctBtn.disabled = false;
+        els.wrongBtn.disabled = false;
+      }
+    });
+    els.closeModalBtn.addEventListener("click", closeModal);
+    els.newGameBtn.addEventListener("click", startNewGame);
+
+    els.modal.addEventListener("click", (event) => {
+      if (event.target === els.modal) {
+        closeModal();
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && els.modal.classList.contains("active")) {
+        closeModal();
+      }
+    });
+
+    boot();
+  </script>
+</body>
+</html>
